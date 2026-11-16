@@ -1,0 +1,232 @@
+/* конструктор диаграмм */
+.diagram {
+  --ink: var(--c-text);
+  --paper: var(--c-surface);
+  --accent: var(--c-primary);
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &__bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    padding: 10px;
+    border: var(--line);
+    border-radius: var(--radius);
+    background: var(--c-surface-2);
+  }
+
+  &__group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__hint {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    background: var(--c-primary-soft);
+    color: var(--c-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  &__scroll {
+    position: relative;
+    overflow: auto;
+    border: var(--line);
+    border-radius: var(--radius);
+    background-color: var(--paper);
+    background-image: radial-gradient(color-mix(in srgb, var(--c-text) 14%, transparent) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  &__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    touch-action: none;
+    user-select: none;
+  }
+
+  &--ro &__svg {
+    touch-action: auto;
+  }
+
+  &__empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 16px;
+    color: var(--c-muted);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  /* фигуры */
+  &__shape {
+    fill: var(--paper);
+    stroke: var(--ink);
+    stroke-width: 1.6;
+  }
+
+  &__stroke,
+  &__line,
+  &__ink {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.6;
+  }
+
+  &__hollow {
+    fill: var(--paper);
+    stroke: var(--ink);
+  }
+
+  &__fill {
+    fill: var(--ink);
+    stroke: var(--ink);
+  }
+
+  &__boundary {
+    fill: color-mix(in srgb, var(--accent) 5%, transparent);
+    stroke: var(--ink);
+    stroke-width: 1.6;
+  }
+
+  &__hit {
+    stroke: transparent;
+    stroke-width: 16;
+  }
+
+  &__hit-box {
+    fill: transparent;
+  }
+
+  &__handle {
+    fill: var(--accent);
+    cursor: nwse-resize;
+  }
+
+  &__text,
+  &__title,
+  &__small,
+  &__mono {
+    fill: var(--ink);
+    font-family: var(--font);
+    font-size: 14px;
+  }
+
+  &__title {
+    font-weight: 700;
+  }
+
+  &__small {
+    fill: var(--c-muted);
+    font-size: 12px;
+  }
+
+  &__mono {
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  &__props {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: var(--line);
+    border-radius: var(--radius);
+
+    &--row {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+  }
+}
+
+.dg-node {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &.is-sel .diagram__shape,
+  &.is-sel .diagram__boundary {
+    stroke: var(--accent);
+    stroke-width: 2.6;
+  }
+
+  &.is-sel .diagram__stroke {
+    stroke: var(--accent);
+  }
+
+  &.is-target {
+    cursor: crosshair;
+  }
+}
+
+.diagram--ro .dg-node {
+  cursor: default;
+}
+
+.dg-edge {
+  cursor: pointer;
+
+  &.is-sel .diagram__line {
+    stroke: var(--accent);
+    stroke-width: 2.6;
+  }
+}
+
+/* результат проверки */
+.check-res {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: var(--line);
+  border-radius: var(--radius);
+  background: var(--c-surface-2);
+
+  p {
+    margin: 0;
+  }
+
+  &__score strong {
+    font-size: 1.2rem;
+  }
+
+  &__ok {
+    color: var(--c-ok);
+    font-weight: 700;
+  }
+
+  &__list {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding-left: 1.2em;
+
+    &--err {
+      color: var(--c-err);
+    }
+
+    &--warn {
+      color: var(--c-warn);
+    }
+  }
+}
+
+.diagram-card {
+  margin-top: 20px;
+}

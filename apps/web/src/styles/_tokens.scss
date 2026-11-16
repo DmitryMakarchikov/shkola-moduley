@@ -1,0 +1,68 @@
+/* токены: цвета, тени, размеры */
+:root {
+  color-scheme: light;
+  --c-bg: #f4f6fb;
+  --c-surface: #ffffff;
+  --c-surface-2: #eef1f8;
+  --c-border: #dde3ee;
+  --c-hair: var(--c-border);
+  --c-text: #131a2b;
+  --c-muted: #586377;
+  --c-primary: #1f4fd1;
+  --c-primary-hover: #1941b0;
+  --c-primary-soft: #e7edfd;
+  --c-on-primary: #ffffff;
+  --c-ok: #137547;
+  --c-ok-soft: #e1f3e9;
+  --c-warn: #955600;
+  --c-warn-soft: #fcf0da;
+  --c-err: #bf2f2a;
+  --c-err-soft: #fce7e6;
+  --c-info: #1f4fd1;
+  --c-info-soft: #e7edfd;
+  --c-lab: #7c3aed;
+  --c-lab-soft: #efe8fd;
+  --c-code-bg: #0f1526;
+  --c-code-text: #e3eaf6;
+
+  /* фирменный переход: от синего к фиолетовому, как на значке */
+  --grad: linear-gradient(135deg, #3a72ff, #6d3cf0);
+
+  --line: 1px solid var(--c-border);
+  --shadow-1: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.07);
+  --shadow-2: 0 12px 32px rgb(16 24 40 / 0.14);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --header-h: 62px;
+  --sidebar-w: 272px;
+  --font: 'Golos Text', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+}
+
+/* тёмная тема */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --c-bg: #0c101b;
+  --c-surface: #141a28;
+  --c-surface-2: #1b2233;
+  --c-border: #273148;
+  --c-text: #e5e9f3;
+  --c-muted: #9ca6bb;
+  --c-primary: #7096ff;
+  --c-primary-hover: #8eabff;
+  --c-primary-soft: #1b2950;
+  --c-on-primary: #0a0f1e;
+  --c-ok: #4ec58c;
+  --c-ok-soft: #11301f;
+  --c-warn: #f2b457;
+  --c-warn-soft: #34270f;
+  --c-err: #ff7d74;
+  --c-err-soft: #3b1718;
+  --c-info: #7096ff;
+  --c-info-soft: #1b2950;
+  --c-lab: #a78bfa;
+  --c-lab-soft: #251d45;
+  --c-code-bg: #0a0e18;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-2: 0 16px 40px rgb(0 0 0 / 0.5);
+}

@@ -1,0 +1,504 @@
+/* успеваемость: карточки групп, сравнение, распределение, таблица учащихся */
+.tone-ok {
+  color: var(--c-ok);
+}
+
+.tone-info {
+  color: var(--c-info);
+}
+
+.tone-warn {
+  color: var(--c-warn);
+}
+
+.tone-err {
+  color: var(--c-err);
+}
+
+.tone-muted {
+  color: var(--c-muted);
+}
+
+/* панель над списком: вкладки, поиск, сортировка */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+
+  .tabs {
+    margin-bottom: 0;
+  }
+
+  &__search {
+    flex: 1 1 220px;
+    max-width: 320px;
+  }
+
+  &__sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    color: var(--c-muted);
+    font-size: 0.875rem;
+  }
+}
+
+/* кольцо прогресса */
+.ring {
+  --p: 0;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: conic-gradient(var(--c-primary) calc(var(--p) * 1%), var(--c-surface-2) 0);
+
+  &__value {
+    display: grid;
+    place-items: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--c-surface);
+    font-size: 1.05rem;
+    font-weight: 800;
+  }
+}
+
+/* распределение отметок */
+.dist {
+  &__bar {
+    display: flex;
+    gap: 2px;
+    height: 12px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--c-surface-2);
+  }
+
+  &__part {
+    min-width: 6px;
+    transition: flex-grow 0.3s;
+
+    &--excellent {
+      background: var(--c-ok);
+    }
+
+    &--good {
+      background: var(--c-info);
+    }
+
+    &--fair {
+      background: var(--c-warn);
+    }
+
+    &--poor {
+      background: var(--c-err);
+    }
+
+    &--none {
+      background: var(--c-border);
+    }
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin: 8px 0 0;
+    padding: 0;
+    color: var(--c-muted);
+    font-size: 0.8rem;
+    list-style: none;
+
+    li {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    b {
+      color: var(--c-text);
+    }
+  }
+
+  &__dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+  }
+}
+
+/* сравнение групп */
+.compare {
+  margin-bottom: 16px;
+
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(90px, 0.6fr) 1fr 1fr minmax(60px, 0.4fr);
+    gap: 6px 16px;
+    align-items: center;
+  }
+
+  &__head {
+    color: var(--c-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  &__row {
+    display: contents;
+    color: inherit;
+    text-decoration: none;
+
+    &:hover b {
+      color: var(--c-primary);
+    }
+  }
+
+  &__crown {
+    color: var(--c-warn);
+  }
+
+  &__bar {
+    position: relative;
+    display: block;
+    height: 22px;
+    overflow: hidden;
+    border-radius: 6px;
+    background: var(--c-surface-2);
+
+    em {
+      position: absolute;
+      top: 50%;
+      right: 8px;
+      font-size: 0.8rem;
+      font-style: normal;
+      font-weight: 700;
+      transform: translateY(-50%);
+    }
+  }
+
+  &__fill {
+    display: block;
+    height: 100%;
+    background: var(--grad);
+    opacity: 0.85;
+    transition: width 0.4s ease-out;
+
+    &--ok {
+      background: var(--c-ok);
+    }
+
+    &--info {
+      background: var(--c-info);
+    }
+
+    &--warn {
+      background: var(--c-warn);
+    }
+
+    &--err {
+      background: var(--c-err);
+    }
+
+    &--muted {
+      background: var(--c-border);
+    }
+  }
+
+  &__debts {
+    color: var(--c-err);
+    font-weight: 700;
+  }
+}
+
+/* карточки групп */
+.group-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
+}
+
+.group-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    border-color 0.15s;
+
+  &:hover {
+    border-color: var(--c-primary);
+    transform: translateY(-2px);
+  }
+
+  &--mine {
+    border-color: color-mix(in srgb, var(--c-primary) 45%, var(--c-border));
+  }
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  &__name {
+    margin: 0;
+    font-size: 1.35rem;
+  }
+
+  &__meta {
+    margin: 2px 0 0;
+    color: var(--c-muted);
+    font-size: 0.85rem;
+  }
+
+  &__kpi {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  &__ring {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+
+    small {
+      color: var(--c-muted);
+      font-size: 0.72rem;
+    }
+  }
+
+  &__nums {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 14px;
+    color: var(--c-muted);
+    font-size: 0.82rem;
+
+    b {
+      display: block;
+      color: var(--c-text);
+      font-size: 1.2rem;
+      line-height: 1.2;
+    }
+  }
+
+  &__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__open {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+    color: var(--c-primary);
+    font-size: 0.85rem;
+    font-weight: 700;
+
+    .icon {
+      transform: rotate(-90deg);
+    }
+  }
+}
+
+/* показатели группы */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  min-height: 108px;
+  padding: 14px 16px;
+  border: var(--line);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-1);
+
+  &__value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  &__label {
+    color: var(--c-muted);
+    font-size: 0.82rem;
+  }
+}
+
+/* таблица учащихся */
+.progress-table {
+  td {
+    white-space: nowrap;
+  }
+}
+
+.progress-row {
+  &__name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 8px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--c-text);
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--c-primary);
+    }
+  }
+
+  &__tg {
+    display: inline-flex;
+    margin-left: 6px;
+    color: var(--c-info);
+    vertical-align: middle;
+  }
+
+  &__bar {
+    min-width: 150px;
+
+    .progress {
+      display: inline-block;
+      width: 100px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+  }
+
+  &.is-open td {
+    background: color-mix(in srgb, var(--c-primary-soft) 60%, transparent);
+  }
+}
+
+.progress-detail {
+  td {
+    padding: 4px 18px 18px;
+    white-space: normal;
+    background: color-mix(in srgb, var(--c-primary-soft) 35%, transparent);
+  }
+
+  &__why {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 10px 0;
+    color: var(--c-err);
+    font-weight: 600;
+  }
+
+  &__cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 16px;
+
+    h3 {
+      margin: 8px 0;
+      font-size: 0.95rem;
+    }
+  }
+}
+
+.debt-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  font-size: 0.88rem;
+  list-style: none;
+}
+
+.progress-help {
+  margin-top: 14px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .compare__grid {
+    grid-template-columns: minmax(70px, 0.5fr) 1fr 1fr;
+
+    .compare__head:last-of-type,
+    .compare__debts,
+    .compare__row > span:last-child {
+      display: none;
+    }
+  }
+
+  .toolbar__sort {
+    margin-left: 0;
+  }
+}
+
+/* успеваемость на главной */
+.glance {
+  margin-bottom: 16px;
+
+  &__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+    gap: 12px;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px;
+    border: var(--line);
+    border-radius: var(--radius-sm);
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+      border-color: var(--c-primary);
+    }
+
+    .dist__legend {
+      display: none;
+    }
+  }
+
+  &__body {
+    display: grid;
+    flex: 1;
+    gap: 6px;
+    min-width: 0;
+    font-size: 0.85rem;
+
+    strong {
+      font-size: 1.05rem;
+    }
+  }
+}

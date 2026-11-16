@@ -1,0 +1,22 @@
+/* ядро платформы «Школа модулей» */
+export * from './model.ts';
+export * from './errors.ts';
+export * from './ports.ts';
+export * from './roles.ts';
+export * from './validate.ts';
+export * from './grading.ts';
+export { MemoryRepo, type Change } from './memory-repo.ts';
+export { dispatch, match, routeList, type Method, type Req } from './router.ts';
+export { createFile, fileAccess, fileExtOk, purgeExpired, upgradeData } from './services/misc.ts';
+export { resolveSession } from './services/auth.ts';
+export * from './diagram.ts';
+export { seedDemo, DEMO_ACCOUNTS, DEMO_PASSWORD, type CoursePackage } from './seed.ts';
+export type { Ctx } from './context.ts';
+export * from './brand.ts';
+export { telegramBind, telegramUnbindChat } from './services/telegram.ts';
+export * from './crossword.ts';
+export { groupsProgress, groupProgress, remindDeadlines } from './services/progress.ts';
+export { BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT, botAnswer, botRole } from './services/telegram.ts';
+export { blockText, cleanTerm, findRanges, fold, hasWords, queryWords, type SearchHit, type SearchKind } from './services/search.ts';
+export { fillDemoAnswers } from './services/stats.ts';
+export { liveQuestions } from './services/live.ts';

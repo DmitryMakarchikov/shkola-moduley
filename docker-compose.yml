@@ -1,0 +1,28 @@
+# сервер + PostgreSQL: docker compose up -d
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shkola
+      POSTGRES_PASSWORD: change-me
+      POSTGRES_DB: shkola
+    volumes:
+      - db:/var/lib/postgresql/data
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://shkola:change-me@db:5432/shkola
+    volumes:
+      - storage:/app/apps/server/storage
+    depends_on:
+      - db
+volumes:
+  db:
+  storage:

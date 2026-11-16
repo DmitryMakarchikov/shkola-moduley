@@ -1,0 +1,29 @@
+{
+  "name": "shkola-moduley",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Школа модулей — дидактический конструктор учебных курсов: лекции, тесты, лабораторные работы, роли учреждения образования",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web",
+    "dev:server": "npm run dev --workspace apps/server",
+    "build": "npm run build --workspace apps/web",
+    "build:offline": "npm run build:offline --workspace apps/web",
+    "start": "npm run start --workspace apps/server",
+    "test": "node --test packages/core/test/*.test.ts",
+    "typecheck": "tsc -p packages/core && tsc -p apps/web && tsc -p apps/server",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "prettier": "^3.6.2",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}

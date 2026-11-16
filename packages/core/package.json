@@ -1,0 +1,11 @@
+{
+  "name": "@pc/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Бизнес-логика платформы «Школа модулей»: одна и та же в браузере (автономный режим) и на сервере",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "sideEffects": false
+}
