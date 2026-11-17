@@ -335,3 +335,85 @@
     }
   }
 }
+
+/* демонстрация первой: роли с подсказкой, что посмотреть */
+.demo--first {
+  padding-top: 0;
+  border-top: none;
+
+  .demo__title {
+    margin-bottom: 2px;
+    color: var(--c-text);
+    font-size: 1rem;
+  }
+}
+
+.demo__sub {
+  margin: 0 0 12px;
+  color: var(--c-muted);
+  font-size: 0.875rem;
+}
+
+.demo__list--roles {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.demo__item--role {
+  align-items: center;
+  padding: 10px 12px;
+
+  .demo__who {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &:hover:not(:disabled) .demo__go {
+    color: var(--c-primary);
+    transform: translateX(3px);
+  }
+}
+
+.demo__pitch {
+  display: block;
+  color: var(--c-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.demo__go {
+  flex: none;
+  color: var(--c-muted);
+  transition:
+    color 0.15s,
+    transform 0.15s;
+}
+
+.demo__more {
+  margin: 10px 0 0;
+  color: var(--c-muted);
+  font-size: 0.8125rem;
+}
+
+.auth__or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--c-muted);
+  font-size: 0.8125rem;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--c-border);
+  }
+}
+
+.demo__item--role .demo__role {
+  color: var(--c-text);
+  font-size: 0.9375rem;
+  letter-spacing: 0;
+  text-transform: none;
+}

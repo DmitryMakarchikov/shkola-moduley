@@ -1,9 +1,11 @@
 /* показ блоков лекции */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Block, CrosswordWord, FigurePoint } from '@pc/core';
 import { useApp } from '../lib/app.tsx';
 import { plural } from '../lib/format.ts';
 import { Button, Icon } from '../ui/ui.tsx';
+import { renderList, renderPara, rich } from './Prose.tsx';
+import { termsFor, useTerms } from './Terms.tsx';
 
 /* ссылка на файл: в автономном режиме — временный адрес из IndexedDB, на сервере — защищённый адрес API */
 export const useFileUrl = (fileId: string | null) => {
@@ -50,9 +52,7 @@ export const FileLink = ({ id, name }: { id: string; name: string }) => {
   );
 };
 
-/* **жирный** внутри текста */
-export const rich = (t: string): ReactNode[] =>
-  t.split(/(\*\*[^*\n]+\*\*)/g).map((part, i) => (part.length > 4 && part.startsWith('**') && part.endsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : part));
+export { rich } from './Prose.tsx';
 
 /* рисунок: по нажатию открывается крупно */
 const Figure = ({ url, caption }: { url: string | null; caption: string }) => {
@@ -169,10 +169,24 @@ const embed = (url: string) => {
   return null;
 };
 
-export const Blocks = ({ blocks }: { blocks: Block[] }) => (
+/* after — что показать сразу после блока с данным номером (например, вопрос по прочитанному) */
+export const Blocks = ({ blocks, after }: { blocks: Block[]; after?: Map<number, ReactNode> }) => {
+  const all = useTerms();
+  /* из терминов, которые встречаются в этих блоках, отмечаются шесть самых важных (список уже упорядочен) */
+  const terms = useMemo(() => {
+    const cand = termsFor(all, blocks.flatMap((b) => (b.type === 'term' ? [b.term] : [])));
+    if (!cand.length) return cand;
+    const text = blocks.map((b) => (b.type === 'text' || b.type === 'note' ? b.text : b.type === 'list' ? b.items.join(' \n') : '')).join(' \n');
+    return cand.filter((t) => t.re.test(text)).slice(0, 6);
+  }, [all, blocks]);
+  /* термин отмечается при первом появлении в этом наборе блоков: в шаге лекции или во всей лекции */
+  const used = new Set<string>();
+  const r = (t: string) => rich(t, terms, used);
+  return (
   <div className="lb">
     {blocks.map((b, i) => {
       const prev = blocks[i - 1];
+      const node = ((): ReactNode => {
       switch (b.type) {
         case 'heading':
           return (
@@ -181,29 +195,18 @@ export const Blocks = ({ blocks }: { blocks: Block[] }) => (
             </h2>
           );
         case 'text':
-          return b.text.split(/\n{2,}/).map((p, j) => (
-            <p key={`${i}-${j}`} className="lb-p">
-              {rich(p)}
-            </p>
-          ));
+          /* абзац оформляется по строению: определение, выноска, обычный текст (длинный — частями) */
+          return b.text.split(/\n{2,}/).map((p, j) => renderPara(p, r, `${i}-${j}`));
         case 'list': {
           /* список после заголовка «Контрольные вопросы» — самопроверка с отметками */
           if (prev?.type === 'heading' && /^Контрольные вопросы/i.test(prev.text)) return <SelfCheck key={i} items={b.items} />;
-          const items = b.items.map((x, j) => <li key={j}>{rich(x)}</li>);
-          return b.ordered ? (
-            <ol key={i} className="lb-list">
-              {items}
-            </ol>
-          ) : (
-            <ul key={i} className="lb-list">
-              {items}
-            </ul>
-          );
+          /* нумерованный — шкала этапов, «название — пояснение» — плитки, короткие пункты — сетка */
+          return renderList(b.items, !!b.ordered, r, i);
         }
         case 'note':
           return (
             <aside key={i} className={`note note--${b.tone === 'warn' ? 'warn' : b.tone === 'ok' ? 'ok' : 'info'}`}>
-              {rich(b.text)}
+              {r(b.text)}
             </aside>
           );
         case 'code':
@@ -274,9 +277,20 @@ export const Blocks = ({ blocks }: { blocks: Block[] }) => (
         default:
           return null;
       }
+      })();
+      const extra = after?.get(i);
+      return extra ? (
+        <Fragment key={i}>
+          {node}
+          {extra}
+        </Fragment>
+      ) : (
+        node
+      );
     })}
   </div>
-);
+  );
+};
 
 /* самопроверка: учащийся отмечает вопросы, на которые может ответить; отметки хранятся в браузере */
 const SelfCheck = ({ items }: { items: string[] }) => {

@@ -18,5 +18,6 @@ export * from './crossword.ts';
 export { groupsProgress, groupProgress, remindDeadlines } from './services/progress.ts';
 export { BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT, botAnswer, botRole } from './services/telegram.ts';
 export { blockText, cleanTerm, findRanges, fold, hasWords, queryWords, type SearchHit, type SearchKind } from './services/search.ts';
+export { cleanRepeats, courseRarity, lectureParts, placeReading, type LecturePart } from './services/reading.ts';
 export { fillDemoAnswers } from './services/stats.ts';
 export { liveQuestions } from './services/live.ts';

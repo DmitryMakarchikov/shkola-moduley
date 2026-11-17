@@ -7,6 +7,7 @@ import { ROLE_LABEL, isStaff } from '../roles.ts';
 import { norm, oneOf, str } from '../validate.ts';
 import { listSubmissions, myCourseViews, nextStep, stepsOf } from './learn.ts';
 import { fillDemoAnswers } from './stats.ts';
+import { cleanRepeats } from './reading.ts';
 
 const TRASH_DAYS = 30;
 const DAY = 86_400_000;
@@ -260,6 +261,22 @@ export const upgradeData = async (ports: Ports, extra: { figurePoints?: Record<s
   }
   await fillDemoAnswers(ports);
   if (extra.figurePoints) await addFigurePoints(ports, extra.figurePoints);
+  await cleanLectureRepeats(ports);
+};
+
+/* повторы текста, попавшие в абзацы при импорте из Word, убираются один раз; дальше правка ничего не меняет */
+const cleanLectureRepeats = async (ports: Ports) => {
+  for (const l of await ports.repo.all('lectures')) {
+    let changed = false;
+    const blocks = l.blocks.map((b) => {
+      if (b.type !== 'text') return b;
+      const text = cleanRepeats(b.text);
+      if (text === b.text) return b;
+      changed = true;
+      return { ...b, text };
+    });
+    if (changed) await ports.repo.update('lectures', l.id, { blocks });
+  }
 };
 
 /* точки добавляются только рисунку, у которого их ещё не задавали: если преподаватель удалил все точки, они не вернутся */

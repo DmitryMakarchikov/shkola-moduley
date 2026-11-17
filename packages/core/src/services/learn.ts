@@ -2,10 +2,11 @@
 import { alive, audit, base, getAlive, iso, needRole, needUser, notify, softDelete, touch, type Ctx } from '../context.ts';
 import { bad, conflict, forbidden, notFound } from '../errors.ts';
 import { checkDiagram, parseDiagram, type Diagram } from '../diagram.ts';
-import { correctFor, gradeTest, studentView, variantOf as testVariant } from '../grading.ts';
+import { checkQuestion, correctFor, gradeTest, studentView, variantOf as testVariant } from '../grading.ts';
 import { fullName, type Assignment, type Course, type Lab, type Lecture, type Submission, type Test, type User } from '../model.ts';
 import { canViewCourseAsStaff, isStaff } from '../roles.ts';
 import { arr, idOf, int, obj, str } from '../validate.ts';
+import { courseRarity, placeReading, type Rarity } from './reading.ts';
 
 const byPos = <T extends { position: number }>(a: T, b: T) => a.position - b.position;
 
@@ -268,7 +269,59 @@ export const learnLecture = async (ctx: Ctx, id: string) => {
   const { user, preview } = await learnAccess(ctx, c);
   await ensureOpen(ctx, c.id, m.id, preview);
   const viewed = (await ctx.repo.find('lectureViews', { lectureId: id, userId: user.id })).length > 0;
-  return { ...lecture, viewed, module: { id: m.id, title: m.title, goal: m.goal }, course: { id: c.id, title: c.title } };
+  /* номер модуля по оглавлению курса: подсказки к терминам берутся только из пройденных тем */
+  const sections = alive(await ctx.repo.find('sections', { courseId: c.id })).sort(byPos);
+  const modules = alive(await ctx.repo.find('modules', { courseId: c.id })).sort(byPos);
+  const no = sections.flatMap((s) => modules.filter((x) => x.sectionId === s.id)).findIndex((x) => x.id === m.id) + 1;
+  return { ...lecture, viewed, module: { id: m.id, title: m.title, goal: m.goal, no }, course: { id: c.id, title: c.title } };
+};
+
+/* вопросы по ходу чтения: задания с выбором ответа из теста для самопроверки этого модуля — без ответов.
+   Берётся только тест без ограничения попыток: в нём правильные ответы и так видны после любой попытки */
+const readingTest = (t: Test) => t.settings.mode === 'self' && !t.settings.draft && !t.settings.attempts;
+/* редкость слов по курсу считается раз в десять минут: правка лекции влияет только на место вопроса */
+const rarityCache = new Map<string, { at: number; r: Rarity }>();
+const rarityOf = async (ctx: Ctx, courseId: string) => {
+  const now = ctx.now().getTime();
+  const hit = rarityCache.get(courseId);
+  if (hit && now - hit.at < 600_000) return hit.r;
+  const mods = alive(await ctx.repo.find('modules', { courseId }));
+  const r = courseRarity(alive(await ctx.repo.list('lectures', 'moduleId', mods.map((m) => m.id))));
+  rarityCache.set(courseId, { at: now, r });
+  return r;
+};
+export const lectureQuestions = async (ctx: Ctx, id: string) => {
+  const lecture = await getAlive(ctx, 'lectures', id, 'Лекция');
+  const { m, c } = await courseOfItem(ctx, lecture.moduleId);
+  const { preview } = await learnAccess(ctx, c);
+  await ensureOpen(ctx, c.id, m.id, preview);
+  const t = alive(await ctx.repo.find('tests', { moduleId: m.id }))
+    .filter(readingTest)
+    .sort(byPos)[0];
+  if (!t) return { testId: null, testTitle: '', questions: [] };
+  const picked = t.questions
+    .filter((q) => (q.type === 'single' || q.type === 'multi') && q.options.length >= 2 && q.answer.length > 0 && q.text.trim())
+    .slice(0, 8);
+  /* after — номер блока лекции, после которого показать задание; null — в «Проверьте себя» в конце */
+  const after = placeReading(lecture.blocks, picked, await rarityOf(ctx, c.id));
+  const questions = picked.map((q, i) => ({ id: q.id, type: q.type, text: q.text, options: q.options, ...(q.image ? { image: q.image } : {}), after: after[i] ?? null }));
+  return { testId: t.id, testTitle: t.title, questions };
+};
+
+/* проверка одного задания без попытки — только для тестов самопроверки: ответ, пояснение, без отметки */
+export const checkTestQuestion = async (ctx: Ctx, id: string, input: unknown) => {
+  const test = await getAlive(ctx, 'tests', id, 'Тест');
+  const { m, c } = await courseOfItem(ctx, test.moduleId);
+  const { preview } = await learnAccess(ctx, c);
+  await ensureOpen(ctx, c.id, m.id, preview);
+  if (!readingTest({ ...test, settings: { ...test.settings, draft: test.settings.draft && !preview } })) throw forbidden('По одному заданию проверяются только тесты для самопроверки без ограничения попыток');
+  const b = obj(input);
+  const q = test.questions.find((x) => x.id === b.questionId);
+  if (!q || (q.type !== 'single' && q.type !== 'multi')) throw notFound('Задание');
+  const raw = Array.isArray(b.answer) ? b.answer : [b.answer];
+  const picks = [...new Set(raw.filter((x): x is number => Number.isInteger(x)))];
+  if (!picks.length) throw bad('Выберите ответ');
+  return { correct: checkQuestion(q, q.type === 'single' ? picks[0] : picks), answer: q.answer.map(Number), explain: q.explain };
 };
 
 export const markViewed = async (ctx: Ctx, id: string) => {

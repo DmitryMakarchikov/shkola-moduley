@@ -52,7 +52,7 @@ const guideSteps = (role: Role, course?: StudentDash['courses'][number], lab?: s
   if (role === 'student') {
     const c = course;
     return [
-      { icon: 'lecture', title: 'Модуль по шагам', text: 'Лекция разбита на короткие шаги, после шага — проверка терминов', to: c ? (c.next ? itemLink(c.next.kind, c.next.id) : `/learn/${c.id}`) : '/learn' },
+      { icon: 'lecture', title: 'Модуль по шагам', text: 'Короткие шаги, карточки определений, вопросы по ходу чтения и подсказки к терминам', to: c ? (c.next ? itemLink(c.next.kind, c.next.id) : `/learn/${c.id}`) : '/learn' },
       { icon: 'eye', title: 'Интерактивные схемы', text: 'Нажимайте на номера на схеме: деталь приближается, рядом пояснение', to: c ? `/learn/${c.id}` : '/learn' },
       { icon: 'search', title: 'Поиск по курсу', text: 'Ctrl+K или «/»: термин, тема, лекция — с подсветкой в тексте', search: true },
       { icon: 'glossary', title: 'Словарь терминов', text: 'Все термины курса по алфавиту, карточки и тренажёр', to: c ? `/learn/${c.id}/glossary` : '/learn' },

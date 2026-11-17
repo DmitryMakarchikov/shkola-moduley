@@ -6,8 +6,18 @@ import { Logo } from '../layout/Layout.tsx';
 import { useApp } from '../lib/app.tsx';
 import { Button, ErrorBox, Field, Icon } from '../ui/ui.tsx';
 
+/* что посмотреть под каждой ролью: демонстрационный вход для тех, кто открывает систему впервые */
+const ROLE_PITCH: Partial<Record<string, string>> = {
+  student: 'Курс ТРПО по шагам: схемы с точками, вопросы по ходу чтения, UML с автопроверкой',
+  teacher: 'Конструктор модулей, проверка работ, опрос на занятии, анализ заданий',
+  methodist: 'Утверждение курсов, журнал и успеваемость групп',
+  director: 'Люди и роли, группы, успеваемость, журнал действий',
+  owner: 'Учреждения и их администраторы',
+};
+const DEMO_ORDER = ['student', 'teacher', 'metodist', 'director', 'admin'];
+
 const POINTS = [
-  { icon: 'book', title: 'Курсы из модулей', text: 'В каждом модуле — лекции, тесты и лабораторные работы' },
+  { icon: 'book', title: 'Лекции, которые читаются', text: 'Шаги, карточки определений, схемы с точками, вопросы по ходу чтения' },
   { icon: 'user', title: 'Свой вариант у каждого', text: 'Задания тестов и варианты работ выдаются индивидуально' },
   { icon: 'check', title: 'Проверка и отметки', text: 'Сдача работ с файлами, диаграммы с автопроверкой, журнал' },
   { icon: 'cycle', title: 'Везде', text: 'Компьютер, планшет, телефон — с сервера и без интернета' },
@@ -82,7 +92,39 @@ export const LoginPage = () => {
   };
 
   return (
-    <AuthShell title="Вход" lead="Введите логин и пароль, которые выдал администратор учреждения.">
+    <AuthShell title="Вход" lead="Конструктор учебных курсов из модулей: лекции, тесты, лабораторные и журнал в одном месте.">
+      {/* демонстрация — первой: система открывается под выбранной ролью с готовым курсом ТРПО */}
+      <section className="demo demo--first" aria-labelledby="demo-title">
+        <h2 id="demo-title" className="demo__title">
+          Посмотреть без регистрации <span className="demo__pw">пароль {DEMO_PASSWORD}</span>
+        </h2>
+        <p className="demo__sub">Выберите роль — откроется демонстрационное учреждение с курсом ТРПО.</p>
+        <div className="demo__list demo__list--roles">
+          {DEMO_ORDER.map((l) => DEMO_ACCOUNTS.find((a) => a.login === l))
+            .filter((a): a is (typeof DEMO_ACCOUNTS)[number] => !!a)
+            .map((a) => (
+              <button key={a.login} className="demo__item demo__item--role" type="button" disabled={busy} onClick={() => void submit(undefined, a.login, DEMO_PASSWORD)}>
+                <span className={`demo__avatar demo__avatar--${a.role}`} aria-hidden="true">
+                  {a.name.split(' ').slice(0, 2).map((x) => x[0]).join('')}
+                </span>
+                <span className="demo__who">
+                  <span className="demo__role">{ROLE_LABEL[a.role]}</span>
+                  <span className="demo__pitch">{ROLE_PITCH[a.role]}</span>
+                </span>
+                <span className="demo__go" aria-hidden="true">
+                  <Icon name="arrow-right" size={18} />
+                </span>
+              </button>
+            ))}
+        </div>
+        <p className="demo__more">
+          Ещё учётные записи: {DEMO_ACCOUNTS.filter((a) => !DEMO_ORDER.includes(a.login)).map((a) => `${a.login} (${ROLE_LABEL[a.role].toLowerCase()})`).join(', ')}
+        </p>
+      </section>
+
+      <p className="auth__or">
+        <span>или войдите по логину</span>
+      </p>
       <form className="form" onSubmit={submit} noValidate>
         <Field label="Логин">{(id) => <input id={id} className="input" autoComplete="username" autoCapitalize="none" spellCheck={false} value={lg} onChange={(e) => setLg(e.target.value)} />}</Field>
         <Field label="Пароль">
@@ -115,25 +157,6 @@ export const LoginPage = () => {
         </span>
       </Link>
 
-      {/* демонстрация */}
-      <section className="demo" aria-labelledby="demo-title">
-        <h2 id="demo-title" className="demo__title">
-          Быстрый вход для знакомства <span className="demo__pw">пароль {DEMO_PASSWORD}</span>
-        </h2>
-        <div className="demo__list">
-          {DEMO_ACCOUNTS.map((a) => (
-            <button key={a.login} className="demo__item" type="button" disabled={busy} onClick={() => void submit(undefined, a.login, DEMO_PASSWORD)}>
-              <span className={`demo__avatar demo__avatar--${a.role}`} aria-hidden="true">
-                {a.name.split(' ').slice(0, 2).map((x) => x[0]).join('')}
-              </span>
-              <span className="demo__who">
-                <span className="demo__role">{ROLE_LABEL[a.role]}</span>
-                <span className="demo__name">{a.name.split(' ').slice(0, 2).join(' ')}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
     </AuthShell>
   );
 };

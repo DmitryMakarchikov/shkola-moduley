@@ -1,9 +1,12 @@
 /* обучение: мои курсы, курс по модулям, лекция, тест, лабораторная */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { DIAGRAM_SPEC, findRanges, queryWords, type Block, type Diagram, type DiagramCheck, type DiagramKind, type QuestionType, type SubmissionStatus, type TestSettings } from '@pc/core';
+import { DIAGRAM_SPEC, findRanges, lectureParts, queryWords, type Block, type Diagram, type DiagramCheck, type DiagramKind, type QuestionType, type SubmissionStatus, type TestSettings } from '@pc/core';
 import { Blocks, FileLink, useFileUrl } from '../components/Blocks.tsx';
 import { CheckResult, DiagramEditor, emptyDiagram } from '../components/Diagram.tsx';
+import { defTermsOf } from '../components/Prose.tsx';
+import { InlineQuestion, placeByAfter, QuestionDeck, ReadingProvider, type ReadQs } from '../components/Reading.tsx';
+import { termRe, TermsCtx, type GlossTerm } from '../components/Terms.tsx';
 import { useApp } from '../lib/app.tsx';
 import { fileSize, fmtDate, fmtDateTime, itemLink, KIND_ICON, KIND_LABEL, plural, SUB_STATUS, type ItemKind } from '../lib/format.ts';
 import { useAction, useLoad } from '../lib/hooks.ts';
@@ -382,7 +385,7 @@ interface LectureView {
   title: string;
   blocks: Block[];
   viewed: boolean;
-  module: Ref & { goal?: string };
+  module: Ref & { goal?: string; no?: number };
   course: Ref;
 }
 
@@ -588,16 +591,10 @@ const Listen = ({ text }: { text: string }) => {
 };
 
 /* лекция по шагам: раздел — шаг, в конце термины и итог */
-const Steps = ({ lecture, onDone, canMark, busy }: { lecture: LectureView; onDone: () => void; canMark: boolean; busy: boolean }) => {
-  const parts = useMemo(() => {
-    const out: { title: string; blocks: Block[] }[] = [];
-    for (const b of lecture.blocks) {
-      if (b.type === 'heading') out.push({ title: b.text, blocks: [] });
-      else if (out.length) out[out.length - 1]!.blocks.push(b);
-      else out.push({ title: 'Основные понятия', blocks: [b] });
-    }
-    return out.filter((x) => x.blocks.length);
-  }, [lecture.blocks]);
+const Steps = ({ lecture, onDone, canMark, busy, qs }: { lecture: LectureView; onDone: () => void; canMark: boolean; busy: boolean; qs?: ReadQs }) => {
+  const parts = useMemo(() => lectureParts(lecture.blocks), [lecture.blocks]);
+  /* вопрос из теста самопроверки — в конце шага, к которому относится; остальные — в итоге */
+  const place = useMemo(() => placeByAfter(parts, qs?.questions ?? []), [parts, qs]);
   const terms = useMemo(() => lecture.blocks.flatMap((b) => (b.type === 'term' ? [{ term: b.term, definition: b.definition }] : [])).filter((t, i, all) => all.findIndex((x) => x.term === t.term) === i), [lecture.blocks]);
   const extra = terms.length >= 4 ? 1 : 0;
   const total = parts.length + extra + 1;
@@ -640,8 +637,8 @@ const Steps = ({ lecture, onDone, canMark, busy }: { lecture: LectureView; onDon
           <li key={i}>
             <button
               type="button"
-              className={`stepper__dot ${i === step ? 'is-current' : i < step ? 'is-done' : ''}`}
-              aria-label={`Шаг ${i + 1}: ${parts[i]?.title ?? (extra && i === parts.length ? 'Термины' : 'Итог')}`}
+              className={`stepper__dot ${i === step ? 'is-current' : i < step ? 'is-done' : ''} ${place.byPart.has(i) ? 'has-q' : ''}`}
+              aria-label={`Шаг ${i + 1}: ${parts[i]?.title ?? (extra && i === parts.length ? 'Термины' : 'Итог')}${place.byPart.has(i) ? ' (есть вопрос)' : ''}`}
               aria-current={i === step ? 'step' : undefined}
               onClick={() => go(i)}
             />
@@ -658,7 +655,30 @@ const Steps = ({ lecture, onDone, canMark, busy }: { lecture: LectureView; onDon
         {part && (
           <>
             <h2 className="step__title">{part.title}</h2>
+            {/* ключевые понятия шага: нажатие показывает карточку определения */}
+            {defTermsOf(part.blocks).length >= 2 && (
+              <p className="step__keys">
+                <span className="step__keys-label">Ключевые понятия:</span>
+                {defTermsOf(part.blocks).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className="step__key"
+                    onClick={() => {
+                      const el = document.querySelector(`.step [data-def="${CSS.escape(t)}"]`);
+                      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      el?.classList.remove('is-lit');
+                      void (el as HTMLElement | null)?.offsetWidth;
+                      el?.classList.add('is-lit');
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </p>
+            )}
             <Blocks blocks={part.blocks} />
+            {place.byPart.has(step) && <InlineQuestion key={`q-${step}`} q={place.byPart.get(step)!} />}
             {/* проверка сразу после объяснения: термины этого шага */}
             {stepTerms(part.blocks).length >= 2 && terms.length >= 3 && (
               <section className="step__check">
@@ -686,6 +706,7 @@ const Steps = ({ lecture, onDone, canMark, busy }: { lecture: LectureView; onDon
                 <li key={i}>{x.title}</li>
               ))}
             </ul>
+            {qs?.testId && place.rest.length > 0 && <QuestionDeck questions={place.rest} title={qs.testTitle} />}
             {lecture.viewed ? (
               <p className="done-bar__ok">
                 <Icon name="check" /> Лекция отмечена как прочитанная
@@ -780,10 +801,39 @@ const FindBar = ({ q, root, dep, onClose }: { q: string; root: React.RefObject<H
   );
 };
 
+interface GlossaryView {
+  terms: { key: string; term: string; defs: { text: string; lectureId: string; lecture: string; moduleNo: number; locked: boolean }[] }[];
+}
+/* термины, которые в тексте не отмечаются: английские названия видов тестирования («System (системное)»),
+   перечни через «/» и одиночные прилагательные («Ручное») — вне своей темы они читаются как обычные слова */
+const noisy = (term: string) => {
+  const main = term.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  return main.includes('/') || /^[A-Za-z][a-z]+(?:[A-Z][a-z]+)*$/.test(main) || /^[А-ЯЁа-яё]+(?:ое|ый|ий|ая|ые|ой)$/.test(main);
+};
+/* термины словаря курса для подсказок в тексте: только из пройденных тем (номер модуля не больше текущего).
+   Порядок — по важности: сначала термины этой темы, затем составные, затем введённые недавно */
+const glossTerms = (g: GlossaryView | null | undefined, courseId: string, no: number): GlossTerm[] =>
+  (g?.terms ?? [])
+    .flatMap((t) => {
+      if (noisy(t.term)) return [];
+      const d = t.defs.find((x) => !x.locked && (!no || x.moduleNo <= no));
+      const re = d ? termRe(t.term) : null;
+      return d && re ? [{ key: t.key, term: t.term, def: d.text, lectureId: d.lectureId, lecture: d.lecture, moduleNo: d.moduleNo, link: `/learn/${courseId}/glossary?t=${encodeURIComponent(t.term)}`, re }] : [];
+    })
+    .map((t) => ({ t, rank: (t.moduleNo === no ? 100 : 0) + (/\s/.test(t.term.replace(/\s*\([^)]*\)/g, '').trim()) ? 50 : 0) + t.moduleNo }))
+    .sort((a, b) => b.rank - a.rank)
+    .map((x) => x.t);
+const NO_QS: ReadQs = { testId: null, testTitle: '', questions: [] };
+
 export const LecturePage = () => {
   const { id = '' } = useParams();
   const { client, user } = useApp();
   const lec = useLoad(() => client.call<LectureView>('GET', `/learn/lectures/${id}`), [id]);
+  const qs = useLoad(() => client.call<ReadQs>('GET', `/learn/lectures/${id}/questions`).catch(() => NO_QS), [id]);
+  const courseId = lec.data?.course.id ?? '';
+  const gl = useLoad(() => (courseId ? client.call<GlossaryView>('GET', `/learn/courses/${courseId}/glossary`).catch(() => null) : Promise.resolve(null)), [courseId]);
+  const moduleNo = lec.data?.module.no ?? 0;
+  const terms = useMemo(() => glossTerms(gl.data, courseId, moduleNo), [gl.data, courseId, moduleNo]);
   const { busy, run } = useAction();
   const [sp, setSp] = useSearchParams();
   const q = sp.get('q') ?? '';
@@ -826,11 +876,17 @@ export const LecturePage = () => {
         const words = l.blocks.reduce((n, b) => n + (b.type === 'text' || b.type === 'note' ? b.text.split(/\s+/).length : b.type === 'list' ? b.items.join(' ').split(/\s+/).length : b.type === 'term' ? b.definition.split(/\s+/).length : 0), 0);
         const minutes = Math.max(1, Math.round(words / 170));
         const figures = l.blocks.filter((b) => b.type === 'image').length;
-        const terms = l.blocks.filter((b) => b.type === 'term').length;
+        const termCount = l.blocks.filter((b) => b.type === 'term').length;
         const stepped = heads.length > 1;
         const mark = async () => (await run(() => client.call('POST', `/learn/lectures/${l.id}/view`), 'Отмечено: лекция прочитана')) && lec.reload();
+        const rq = qs.data?.testId ? qs.data : undefined;
+        const nq = rq?.questions.length ?? 0;
+        /* при чтении целиком вопрос встаёт после последнего блока своего раздела */
+        const place = placeByAfter(lectureParts(l.blocks), rq?.questions ?? []);
+        const after = new Map([...place.byBlock].map(([bi, x]) => [bi, <InlineQuestion key={x.id} q={x} />] as const));
         return (
-          <>
+          <TermsCtx.Provider value={terms}>
+          <ReadingProvider testId={rq?.testId}>
             {mode === 'full' && <ReadProgress />}
             <Crumbs course={l.course} module={l.module} />
             <PageHead kicker="Лекция" title={l.title}>
@@ -859,7 +915,12 @@ export const LecturePage = () => {
                   <Icon name="eye" size={16} /> {figures} {plural(figures, ['рисунок', 'рисунка', 'рисунков'])}
                 </span>
               )}
-              {terms >= 4 && (
+              {nq > 0 && (
+                <span>
+                  <Icon name="question" size={16} /> {nq} {plural(nq, ['вопрос', 'вопроса', 'вопросов'])} по ходу чтения
+                </span>
+              )}
+              {termCount >= 4 && (
                 <span>
                   <Icon name="test" size={16} /> тренажёр терминов
                 </span>
@@ -872,12 +933,15 @@ export const LecturePage = () => {
               </div>
             )}
             {stepped && mode === 'steps' ? (
-              <Steps key={l.id} lecture={l} onDone={() => void mark()} canMark={user?.role === 'student'} busy={busy} />
+              <Steps key={l.id} lecture={l} onDone={() => void mark()} canMark={user?.role === 'student'} busy={busy} qs={rq} />
             ) : (
               <>
                 {q && <FindBar q={q} root={body} dep={l.id} onClose={() => setSp({}, { replace: true })} />}
                 <div className={`read ${heads.length > 2 ? 'read--toc' : ''}`}>
-                  <article ref={body} className="card lecture">{l.blocks.length ? <Blocks blocks={l.blocks} /> : <Empty title="Лекция пока пустая" />}</article>
+                  <article ref={body} className="card lecture">
+                    {l.blocks.length ? <Blocks blocks={l.blocks} after={after} /> : <Empty title="Лекция пока пустая" />}
+                    {rq && place.rest.length > 0 && <QuestionDeck questions={place.rest} title={rq.testTitle} />}
+                  </article>
                   {heads.length > 2 && <Outline heads={heads} />}
                 </div>
                 <div className="done-bar">
@@ -899,7 +963,8 @@ export const LecturePage = () => {
               </>
             )}
             <Pager courseId={l.course.id} id={l.id} />
-          </>
+          </ReadingProvider>
+          </TermsCtx.Provider>
         );
       }}
     </Async>

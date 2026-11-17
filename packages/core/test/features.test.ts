@@ -214,3 +214,61 @@ test('интерактивные схемы: точки проверяются, 
   assert.deepEqual([(await last()).points[0].x, (await last()).points[0].y], [100, 0]);
   await assert.rejects(withPoints([{ x: 'левее', y: 5, title: '', text: '' }]), (e: unknown) => e instanceof AppError && e.status === 400);
 });
+
+test('вопросы по ходу чтения: задания самопроверки без ответов, проверка одного задания без попытки; контрольный тест и тест с ограничением попыток не проверяются', async () => {
+  const ports = makePorts();
+  await seedDemo(ports);
+  const student = await as(ports, 'student');
+  const [course] = await student('GET', '/learn/courses');
+  const view = await student('GET', `/learn/courses/${course.id}`);
+  const mod = view.sections.flatMap((s: any) => s.modules).find((m: any) => !m.locked && m.lectures.length && m.tests.length);
+  const r = await student('GET', `/learn/lectures/${mod.lectures[0].id}/questions`);
+  assert.ok(r.testId, 'найден тест для самопроверки');
+  assert.ok(r.questions.length >= 1 && r.questions.length <= 8);
+  assert.ok(r.questions.every((q: any) => (q.type === 'single' || q.type === 'multi') && !('answer' in q) && !('explain' in q)), 'ответы не передаются');
+  const t = (await ports.repo.get('tests', r.testId))!;
+  const q = t.questions.find((x) => x.id === r.questions[0].id)!;
+  const right = q.answer.map(Number);
+  const before = (await ports.repo.find('attempts', {})).length;
+  const ok = await student('POST', `/learn/tests/${t.id}/check`, { questionId: q.id, answer: q.type === 'single' ? right[0] : right });
+  assert.equal(ok.correct, true);
+  const wrong = q.options.findIndex((_, i) => !right.includes(i));
+  const no = await student('POST', `/learn/tests/${t.id}/check`, { questionId: q.id, answer: q.type === 'single' ? wrong : [wrong] });
+  assert.equal(no.correct, false);
+  assert.deepEqual(no.answer, right);
+  assert.equal((await ports.repo.find('attempts', {})).length, before, 'попытка не создаётся');
+  await assert.rejects(student('POST', `/learn/tests/${t.id}/check`, { questionId: q.id, answer: [] }), (e: unknown) => e instanceof AppError && e.status === 400);
+  /* контрольный тест и тест с ограничением попыток: вопросы не выдаются, проверка запрещена */
+  for (const settings of [{ ...t.settings, mode: 'control' as const }, { ...t.settings, attempts: 2 }]) {
+    await ports.repo.update('tests', t.id, { settings });
+    await assert.rejects(student('POST', `/learn/tests/${t.id}/check`, { questionId: q.id, answer: right[0] }), (e: unknown) => e instanceof AppError && e.status === 403);
+    const again = await student('GET', `/learn/lectures/${mod.lectures[0].id}/questions`);
+    assert.notEqual(again.testId, t.id);
+  }
+});
+
+test('чтение: повторы из импорта убираются с переносом выделения; место задания — номер последнего блока раздела', async () => {
+  const { cleanRepeats, lectureParts } = await import('../src/index.ts');
+  const s = 'Требование – описание того, какие функции должна выполнять система.';
+  assert.equal(cleanRepeats(`${s}${s}**Требование** – описание того, какие функции должна выполнять система.`), '**Требование** – описание того, какие функции должна выполнять система.');
+  assert.equal(cleanRepeats('Документ о концепции и границахДокумент о концепции и границахДокумент о концепции и границах'), 'Документ о концепции и границах');
+  assert.equal(cleanRepeats('Базовые классыКлассы данныхWeb ServicesWeb FormsБазовые классыКлассы данныхWeb ServicesWeb Forms'), 'Базовые классы · Классы данных · Web Services · Web Forms');
+  const plain = 'Обычный абзац. Второе предложение абзаца без повторов.\n\nЕщё абзац.';
+  assert.equal(cleanRepeats(plain), plain, 'текст без повторов не меняется');
+  const parts = lectureParts([{ type: 'text', text: 'Вводный абзац' }, { type: 'heading', text: 'Раздел' }, { type: 'text', text: 'а' }, { type: 'list', items: ['б'], ordered: false }, { type: 'heading', text: 'Пустой' }]);
+  assert.deepEqual(parts.map((p) => [p.title, p.last]), [['Основные понятия', 0], ['Раздел', 3]]);
+  /* сервер отдаёт задания с местом: номер блока лекции или null */
+  const ports = makePorts();
+  await seedDemo(ports);
+  const student = await as(ports, 'student');
+  const [course] = await student('GET', '/learn/courses');
+  const view = await student('GET', `/learn/courses/${course.id}`);
+  for (const m of view.sections.flatMap((x: any) => x.modules).filter((x: any) => !x.locked && x.lectures.length)) {
+    const lec = await student('GET', `/learn/lectures/${m.lectures[0].id}`);
+    const r = await student('GET', `/learn/lectures/${lec.id}/questions`);
+    const lasts = new Set(lectureParts(lec.blocks).map((p) => p.last));
+    for (const q of r.questions) assert.ok(q.after === null || lasts.has(q.after), 'задание встаёт в конце раздела');
+    assert.equal(new Set(r.questions.filter((q: any) => q.after !== null).map((q: any) => q.after)).size, r.questions.filter((q: any) => q.after !== null).length, 'в разделе не больше одного задания');
+    assert.equal(typeof lec.module.no, 'number');
+  }
+});
