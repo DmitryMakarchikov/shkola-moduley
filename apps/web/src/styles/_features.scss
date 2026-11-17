@@ -5,6 +5,24 @@
   white-space: pre-line;
 }
 
+/* настройки теста: флажки одной строкой под полями */
+.form__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 28px;
+  margin: 4px 0 8px;
+
+  .check {
+    align-items: flex-start;
+    max-width: 460px;
+    padding: 6px 0;
+
+    input {
+      margin-top: 2px;
+    }
+  }
+}
+
 /* ---------- кнопка поиска в шапке ---------- */
 .search-trigger {
   display: flex;

@@ -571,15 +571,18 @@ const TestEditor = ({ item, onSaved }: { item: ItemFull<Test>; onSaved: () => vo
         <Field label="Заданий в попытке (0 — все)" hint="Если в тесте заданий больше, каждому учащемуся достанется свой набор">
           {(fid) => <input id={fid} className="input" type="number" min={0} max={50} value={settings.pick ?? 0} disabled={ro} onChange={(e) => setSettings({ ...settings, pick: Number(e.target.value) })} />}
         </Field>
-        <label className="check check--field">
+      </div>
+      {/* флажки настроек — одной строкой под полями */}
+      <div className="form__checks">
+        <label className="check">
           <input type="checkbox" checked={settings.shuffle} disabled={ro} onChange={(e) => setSettings({ ...settings, shuffle: e.target.checked })} />
           <span>Свой порядок заданий и ответов у каждого</span>
         </label>
-        <label className="check check--field">
+        <label className="check">
           <input type="checkbox" checked={!!settings.draft} disabled={ro} onChange={(e) => setSettings({ ...settings, draft: e.target.checked })} />
           <span>Черновик: учащиеся тест не видят</span>
         </label>
-        <label className="check check--field">
+        <label className="check">
           <input type="checkbox" checked={settings.gate ?? settings.mode !== 'control'} disabled={ro} onChange={(e) => setSettings({ ...settings, gate: e.target.checked })} />
           <span>Не пускать дальше: пока тест не сдан на проходной процент, следующие модули закрыты</span>
         </label>
