@@ -225,7 +225,8 @@ export const LearnCoursePage = () => {
                   </Link>
                 )}
                 <Link to={`/learn/${c.id}/glossary`} className="btn">
-                  <Icon name="glossary" size={18} /> Словарь терминов курса
+                  <Icon name="glossary" size={18} />
+                  <span>Словарь терминов курса</span>
                 </Link>
               </div>
             </section>

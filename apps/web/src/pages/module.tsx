@@ -277,7 +277,8 @@ const ItemEditorPage = () => {
             {kind === 'tests' && (
               <>
                 <Link to={`/tests/${it.id}/stats`} className="btn">
-                  <Icon name="chart" size={18} /> Анализ заданий
+                  <Icon name="chart" size={18} />
+                  <span>Анализ заданий</span>
                 </Link>
                 <LiveStart testId={it.id} count={liveQuestions(it.questions).length} />
               </>
