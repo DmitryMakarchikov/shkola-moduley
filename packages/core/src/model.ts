@@ -106,12 +106,21 @@ export type Block =
   | { type: 'note'; text: string; tone: 'info' | 'warn' | 'ok' }
   | { type: 'code'; text: string; lang: string }
   | { type: 'table'; rows: string[][] }
-  /* рисунок: загруженный файл (fileId) или рисунок курса из папки сайта (src) */
-  | { type: 'image'; fileId: string; caption: string; src?: string }
+  /* рисунок: загруженный файл (fileId) или рисунок курса из папки сайта (src);
+     points — точки-подсказки: нажатие приближает деталь схемы и показывает пояснение */
+  | { type: 'image'; fileId: string; caption: string; src?: string; points?: FigurePoint[] }
   | { type: 'video'; url: string; caption: string }
   | { type: 'file'; fileId: string; caption: string }
   | { type: 'term'; term: string; definition: string }
   | { type: 'crossword'; title: string; words: CrosswordWord[] };
+
+/* точка на рисунке: положение в процентах от ширины и высоты, заголовок и пояснение */
+export interface FigurePoint {
+  x: number;
+  y: number;
+  title: string;
+  text: string;
+}
 
 export interface CrosswordWord {
   n: number;

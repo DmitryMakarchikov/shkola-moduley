@@ -1,8 +1,8 @@
 /* модуль: лекции, тесты, лабораторные — и их редакторы */
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { buildCrossword, DIAGRAM_KINDS, DIAGRAM_SPEC, liveQuestions, type Block, type Diagram, type Lab, type Lecture, type Module, type Question, type QuestionType, type Test, type TestSettings } from '@pc/core';
-import { Blocks, Crossword, FileLink } from '../components/Blocks.tsx';
+import { buildCrossword, DIAGRAM_KINDS, DIAGRAM_SPEC, liveQuestions, type Block, type Diagram, type FigurePoint, type Lab, type Lecture, type Module, type Question, type QuestionType, type Test, type TestSettings } from '@pc/core';
+import { Blocks, Crossword, FileLink, useFileUrl } from '../components/Blocks.tsx';
 import { DiagramEditor, emptyDiagram } from '../components/Diagram.tsx';
 import { useApp } from '../lib/app.tsx';
 import { useAction, useLoad } from '../lib/hooks.ts';
@@ -331,6 +331,57 @@ const newBlock = (type: Block['type']): Block => {
   }
 };
 
+/* точки на рисунке: нажатие на рисунок ставит точку; у каждой — заголовок и пояснение.
+   Учащийся нажимает на номер — деталь приближается, ниже появляется пояснение */
+const PointsEditor = ({ block: b, onChange }: { block: Extract<Block, { type: 'image' }>; onChange: (b: Block) => void }) => {
+  const file = useFileUrl(b.src ? null : b.fileId || null);
+  const url = b.src ?? file;
+  const pts = b.points ?? [];
+  const set = (points: FigurePoint[]) => onChange({ ...b, points });
+  const edit = (i: number, patch: Partial<FigurePoint>) => set(pts.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+  if (!url) return null;
+  return (
+    <details className="pts" open={pts.length > 0}>
+      <summary>Точки на рисунке: {pts.length ? `${pts.length}` : 'нет'} — интерактивная схема</summary>
+      <p className="muted small">Нажмите на рисунок, чтобы поставить точку, и подпишите её. Пояснение лучше брать из текста лекции.</p>
+      <div
+        className="pts__stage"
+        role="button"
+        tabIndex={0}
+        aria-label="Поставить точку на рисунке"
+        onClick={(e) => {
+          if (pts.length >= 20) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          const x = Math.round(((e.clientX - r.left) / r.width) * 1000) / 10;
+          const y = Math.round(((e.clientY - r.top) / r.height) * 1000) / 10;
+          set([...pts, { x, y, title: '', text: '' }]);
+        }}
+      >
+        <img src={url} alt={b.caption} draggable={false} />
+        {pts.map((p, i) => (
+          <span key={i} className="tour__dot" style={{ left: `${p.x}%`, top: `${p.y}%` }}>
+            {i + 1}
+          </span>
+        ))}
+      </div>
+      {pts.length > 0 && (
+        <ol className="pts__list">
+          {pts.map((p, i) => (
+            <li key={i} className="pts__row">
+              <span className="tour__n">{i + 1}</span>
+              <div className="pts__fields">
+                <input className="input" aria-label={`Точка ${i + 1}: что на рисунке`} placeholder="Что на рисунке" value={p.title} onChange={(e) => edit(i, { title: e.target.value })} />
+                <textarea className="input textarea" aria-label={`Точка ${i + 1}: пояснение`} placeholder="Пояснение" value={p.text} onChange={(e) => edit(i, { text: e.target.value })} />
+              </div>
+              <Button size="sm" kind="ghost" icon="trash" aria-label={`Удалить точку ${i + 1}`} onClick={() => set(pts.filter((_, j) => j !== i))} />
+            </li>
+          ))}
+        </ol>
+      )}
+    </details>
+  );
+};
+
 /* список блоков с перестановкой — общий для лекций и лабораторных */
 const BlocksEditor = ({ blocks, onChange }: { blocks: Block[]; onChange: (b: Block[]) => void }) => {
   const set = (i: number, b: Block) => onChange(blocks.map((x, j) => (j === i ? b : x)));
@@ -503,13 +554,16 @@ const BlockForm = ({ block: b, onChange }: { block: Block; onChange: (b: Block) 
     case 'image':
     case 'file':
       return (
-        <div className="form__row">
-          <div>
-            {b.type === 'image' && b.src ? <img className="blocks__thumb" src={b.src} alt={b.caption} /> : b.fileId ? <FileLink id={b.fileId} name={b.caption || 'файл загружен'} /> : <span className="muted">Файл не выбран</span>}
-            <Upload accept={b.type === 'image' ? 'image/png,image/jpeg,image/webp,image/gif' : undefined} onDone={(f) => onChange({ ...b, fileId: f.id, caption: b.caption || f.name })} />
+        <>
+          <div className="form__row">
+            <div>
+              {b.type === 'image' && b.src ? <img className="blocks__thumb" src={b.src} alt={b.caption} /> : b.fileId ? <FileLink id={b.fileId} name={b.caption || 'файл загружен'} /> : <span className="muted">Файл не выбран</span>}
+              <Upload accept={b.type === 'image' ? 'image/png,image/jpeg,image/webp,image/gif' : undefined} onDone={(f) => onChange({ ...b, fileId: f.id, caption: b.caption || f.name })} />
+            </div>
+            <input className="input" aria-label="Подпись" placeholder="Подпись" value={b.caption} onChange={(e) => onChange({ ...b, caption: e.target.value })} />
           </div>
-          <input className="input" aria-label="Подпись" placeholder="Подпись" value={b.caption} onChange={(e) => onChange({ ...b, caption: e.target.value })} />
-        </div>
+          {b.type === 'image' && <PointsEditor block={b} onChange={onChange} />}
+        </>
       );
     case 'video':
       return (

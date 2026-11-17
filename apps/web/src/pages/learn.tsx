@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DIAGRAM_SPEC, findRanges, queryWords, type Block, type Diagram, type DiagramCheck, type DiagramKind, type QuestionType, type SubmissionStatus, type TestSettings } from '@pc/core';
-import { Blocks, FileLink } from '../components/Blocks.tsx';
+import { Blocks, FileLink, useFileUrl } from '../components/Blocks.tsx';
 import { CheckResult, DiagramEditor, emptyDiagram } from '../components/Diagram.tsx';
 import { useApp } from '../lib/app.tsx';
 import { fileSize, fmtDate, fmtDateTime, itemLink, KIND_ICON, KIND_LABEL, plural, SUB_STATUS, type ItemKind } from '../lib/format.ts';
@@ -162,7 +162,65 @@ export const MyCoursesPage = () => {
 };
 
 /* ---------- курс ---------- */
-const ItemStatus = ({ kind, item }: { kind: ItemKind; item: ModView['lectures'][0] | ModView['tests'][0] | ModView['labs'][0] }) => {
+/* лента «Интерактивные схемы»: рисунки лекций с точками-подсказками */
+interface Fig {
+  lectureId: string;
+  lecture: string;
+  block: number;
+  moduleNo: number;
+  module: string;
+  caption: string;
+  src: string | null;
+  fileId: string | null;
+  points: number;
+  locked: boolean;
+}
+
+const FigThumb = ({ src, fileId, alt }: { src: string | null; fileId: string | null; alt: string }) => {
+  const file = useFileUrl(src ? null : fileId);
+  const url = src ?? file;
+  return url ? <img src={url} alt={alt} loading="lazy" /> : null;
+};
+
+export const FiguresStrip = ({ courseId }: { courseId: string }) => {
+  const { client } = useApp();
+  const f = useLoad(() => client.call<{ figures: Fig[] }>('GET', `/learn/courses/${courseId}/figures`), [courseId]);
+  const list = f.data?.figures ?? [];
+  if (!list.length) return null;
+  return (
+    <section className="figs" aria-labelledby="figs-title">
+      <div className="figs__head">
+        <h2 id="figs-title" className="figs__title">
+          Интерактивные схемы
+        </h2>
+        <span className="muted small">Нажимайте на номера на схеме: деталь приближается, рядом — пояснение из лекции</span>
+      </div>
+      <div className="figs__list">
+        {list.map((x) => {
+          const name = x.caption.replace(/^(Рисунок|Рис\.?)\s*[\d.]*\s*[.–-]?\s*/i, '') || x.lecture;
+          return (
+            <Link key={`${x.lectureId}:${x.block}`} to={`/learn/lecture/${x.lectureId}?fig=${x.block}`} className={`figs__item ${x.locked ? 'is-locked' : ''}`} aria-disabled={x.locked || undefined} title={x.locked ? 'Тема откроется после сдачи теста предыдущей темы' : undefined}>
+              <span className="figs__thumb">
+                <FigThumb src={x.src} fileId={x.fileId} alt={name} />
+                <span className="figs__pts">
+                  {x.points} {plural(x.points, ['точка', 'точки', 'точек'])}
+                </span>
+              </span>
+              <span className="figs__body">
+                <span className="figs__caption">{name}</span>
+                <span className="figs__where">
+                  {x.locked && <Icon name="lock" size={12} />} Тема {x.moduleNo}. {x.module}
+                </span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
+const ItemStatus =({ kind, item }: { kind: ItemKind; item: ModView['lectures'][0] | ModView['tests'][0] | ModView['labs'][0] }) => {
   if (kind === 'lecture') return (item as ModView['lectures'][0]).viewed ? <Badge tone="ok">прочитано</Badge> : <Badge>не прочитано</Badge>;
   if (kind === 'test') {
     const t = item as ModView['tests'][0];
@@ -230,6 +288,7 @@ export const LearnCoursePage = () => {
                 </Link>
               </div>
             </section>
+            <FiguresStrip courseId={c.id} />
 
             {c.sections.map((s) => {
               const own = flat.filter((x) => s.modules.some((m) => m.title === x.module));
@@ -736,10 +795,17 @@ export const LecturePage = () => {
       return 'steps';
     }
   });
-  /* из поиска лекция открывается целиком — так видны все совпадения (выбор способа чтения не запоминаем) */
+  /* из поиска и из ленты схем лекция открывается целиком — так видны все совпадения и нужный рисунок
+     (выбор способа чтения не запоминаем) */
+  const fig = /^\d+$/.test(sp.get('fig') ?? '') ? sp.get('fig') : null;
   useEffect(() => {
-    if (q) setMode('full');
-  }, [q, id]);
+    if (q || fig) setMode('full');
+  }, [q, fig, id]);
+  useEffect(() => {
+    if (!fig || !lec.data) return;
+    const t = setTimeout(() => document.querySelector(`[data-fig="${fig}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+    return () => clearTimeout(t);
+  }, [fig, lec.data]);
   /* в фигурных скобках: в новых браузерах scrollTo возвращает Promise, а эффект должен вернуть функцию или ничего */
   useEffect(() => {
     window.scrollTo(0, 0);

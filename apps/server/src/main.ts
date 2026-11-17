@@ -20,6 +20,7 @@ import {
   purgeExpired,
   remindDeadlines,
   upgradeData,
+  type FigurePoint,
   resolveSession,
   seedDemo,
   type CoursePackage,
@@ -89,7 +90,10 @@ const ports: Ports = { repo, hasher, files, events, now: () => new Date(), id: (
 const COURSE = resolve(ROOT, '..', '..', 'packages', 'course-trpo', 'course.json');
 const coursePkg = existsSync(COURSE) ? (JSON.parse(await readFile(COURSE, 'utf8')) as CoursePackage) : undefined;
 if (process.env.SEED_DEMO !== '0' && (await seedDemo(ports, coursePkg))) console.log('Заполнены демонстрационные данные');
-await upgradeData(ports);
+/* точки-подсказки на рисунках курса (packages/course-trpo/figure-points.json) */
+const POINTS = resolve(ROOT, '..', '..', 'packages', 'course-trpo', 'figure-points.json');
+const figurePoints = existsSync(POINTS) ? (JSON.parse(await readFile(POINTS, 'utf8')) as Record<string, FigurePoint[]>) : undefined;
+await upgradeData(ports, { figurePoints });
 await purgeExpired(ports);
 setInterval(() => void purgeExpired(ports), 6 * 3_600_000).unref();
 /* напоминания о сроках и сводка новых долгов куратору — раз в полчаса (уведомление на сайте и в Telegram) */

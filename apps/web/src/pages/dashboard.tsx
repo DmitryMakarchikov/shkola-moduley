@@ -1,4 +1,5 @@
 /* главная: у учащегося — что делать дальше, у сотрудников — сводка и быстрые действия */
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { ROLE_LABEL, type Role } from '@pc/core';
 import { useApp } from '../lib/app.tsx';
@@ -38,6 +39,117 @@ interface StaffDash {
   myDrafts?: number;
 }
 
+/* «С чего начать»: короткая дорожка знакомства для каждой роли; скрывается и запоминается в браузере */
+interface GuideStep {
+  icon: string;
+  title: string;
+  text: string;
+  to?: string;
+  search?: boolean;
+}
+
+const guideSteps = (role: Role, course?: StudentDash['courses'][number], lab?: string): GuideStep[] => {
+  if (role === 'student') {
+    const c = course;
+    return [
+      { icon: 'lecture', title: 'Модуль по шагам', text: 'Лекция разбита на короткие шаги, после шага — проверка терминов', to: c ? (c.next ? itemLink(c.next.kind, c.next.id) : `/learn/${c.id}`) : '/learn' },
+      { icon: 'eye', title: 'Интерактивные схемы', text: 'Нажимайте на номера на схеме: деталь приближается, рядом пояснение', to: c ? `/learn/${c.id}` : '/learn' },
+      { icon: 'search', title: 'Поиск по курсу', text: 'Ctrl+K или «/»: термин, тема, лекция — с подсветкой в тексте', search: true },
+      { icon: 'glossary', title: 'Словарь терминов', text: 'Все термины курса по алфавиту, карточки и тренажёр', to: c ? `/learn/${c.id}/glossary` : '/learn' },
+      { icon: 'lab', title: 'Конструктор UML', text: 'Диаграмма проверяется сразу, ещё до сдачи работы', to: lab ? itemLink('lab', lab) : c ? `/learn/${c.id}` : '/learn' },
+    ];
+  }
+  if (role === 'teacher') {
+    return [
+      { icon: 'book', title: 'Курс из модулей', text: 'Лекции из блоков, тесты, лабораторные; на рисунке — точки-подсказки', to: '/courses' },
+      { icon: 'inbox', title: 'Проверка работ', text: 'Очередь сданных работ, отметка и готовые замечания', to: '/review' },
+      { icon: 'chart', title: 'Успеваемость группы', text: 'Должники и зона риска, напоминание одной кнопкой', to: '/progress' },
+      { icon: 'test', title: 'Анализ заданий и опрос', text: 'На странице теста: что усвоено и опрос на занятии', to: '/courses' },
+      { icon: 'package', title: 'Модуль без платформы', text: 'На странице модуля: пакет HTML5 / SCORM для СДО', to: '/courses' },
+    ];
+  }
+  if (role === 'methodist') {
+    return [
+      { icon: 'book', title: 'Утверждение курсов', text: 'Курсы на проверке: утвердить или вернуть с замечанием', to: '/courses' },
+      { icon: 'chart', title: 'Успеваемость групп', text: 'Сравнение групп учреждения, долги и зона риска', to: '/progress' },
+      { icon: 'table', title: 'Журнал успеваемости', text: 'Отметки по группам и курсам с выгрузкой в Excel', to: '/journal' },
+      { icon: 'test', title: 'Анализ заданий', text: 'На странице теста: какие задания стоит переписать', to: '/courses' },
+    ];
+  }
+  return [
+    { icon: 'users', title: 'Люди и роли', text: 'Учётные записи сотрудников и учащихся, сброс пароля', to: '/people' },
+    { icon: 'building', title: 'Группы и отделения', text: 'Кураторы, коды приглашения в группу', to: '/structure' },
+    { icon: 'chart', title: 'Успеваемость групп', text: 'Сравнение групп, долги и зона риска', to: '/progress' },
+    { icon: 'history', title: 'Журнал действий', text: 'Кто и что изменил в учреждении', to: '/audit' },
+  ];
+};
+
+const StartGuide = ({ role, course, lab }: { role: Role; course?: StudentDash['courses'][number]; lab?: string }) => {
+  const key = `pc.guide.${role}`;
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem(key) === 'hidden';
+    } catch {
+      return false;
+    }
+  });
+  if (hidden) return null;
+  const steps = guideSteps(role, course, lab);
+  return (
+    <section className="guide card" aria-labelledby="guide-title">
+      <div className="guide__head">
+        <div>
+          <h2 id="guide-title" className="card__title">
+            С чего начать
+          </h2>
+          <p className="muted small">{steps.length} шагов, чтобы познакомиться с платформой</p>
+        </div>
+        <button
+          type="button"
+          className="guide__hide"
+          onClick={() => {
+            setHidden(true);
+            try {
+              localStorage.setItem(key, 'hidden');
+            } catch {
+              /* хранилище недоступно */
+            }
+          }}
+        >
+          Скрыть
+        </button>
+      </div>
+      <ol className="guide__list">
+        {steps.map((s, i) => {
+          const body = (
+            <>
+              <span className="guide__n">{i + 1}</span>
+              <span className="guide__icon">
+                <Icon name={s.icon} size={18} />
+              </span>
+              <span className="guide__title">{s.title}</span>
+              <span className="guide__text">{s.text}</span>
+            </>
+          );
+          return (
+            <li key={s.title}>
+              {s.search ? (
+                <button type="button" className="guide__item" onClick={() => dispatchEvent(new Event('pc:search'))}>
+                  {body}
+                </button>
+              ) : (
+                <Link to={s.to!} className="guide__item">
+                  {body}
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+};
+
 const greeting = () => {
   const h = new Date().getHours();
   return h < 6 ? 'Доброй ночи' : h < 12 ? 'Доброе утро' : h < 18 ? 'Добрый день' : 'Добрый вечер';
@@ -51,7 +163,21 @@ export const DashboardPage = () => {
   return (
     <>
       <PageHead kicker={ROLE_LABEL[user.role]} title={`${greeting()}, ${user.firstName}!`} />
-      <Async state={state}>{(d) => (d.role === 'student' ? <StudentHome d={d as StudentDash} /> : <StaffHome d={d as StaffDash} role={user.role} />)}</Async>
+      <Async state={state}>
+        {(d) =>
+          d.role === 'student' ? (
+            <>
+              <StartGuide role="student" course={(d as StudentDash).courses[0]} lab={(d as StudentDash).todo.find((t) => t.kind === 'lab')?.id} />
+              <StudentHome d={d as StudentDash} />
+            </>
+          ) : (
+            <>
+              <StartGuide role={user.role} />
+              <StaffHome d={d as StaffDash} role={user.role} />
+            </>
+          )
+        }
+      </Async>
     </>
   );
 };

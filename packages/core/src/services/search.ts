@@ -285,3 +285,23 @@ export const courseGlossary = async (ctx: Ctx, courseId: string) => {
     terms: list,
   };
 };
+
+/* ---------- схемы курса ---------- */
+/* рисунки лекций с точками-подсказками — лента «Интерактивные схемы» на странице курса */
+export const courseFigures = async (ctx: Ctx, courseId: string) => {
+  const v = await learnCourse(ctx, courseId);
+  const mods = v.sections.flatMap((s) => s.modules);
+  const no = new Map(mods.map((m, i) => [m.id, i + 1]));
+  const lectures = alive(await ctx.repo.list('lectures', 'moduleId', mods.map((m) => m.id))).sort(
+    (a, b) => no.get(a.moduleId)! - no.get(b.moduleId)! || a.position - b.position,
+  );
+  const figures: { lectureId: string; lecture: string; block: number; moduleNo: number; module: string; caption: string; src: string | null; fileId: string | null; points: number; locked: boolean }[] = [];
+  for (const l of lectures) {
+    const m = mods.find((x) => x.id === l.moduleId)!;
+    l.blocks.forEach((b, i) => {
+      if (b.type !== 'image' || !b.points?.length) return;
+      figures.push({ lectureId: l.id, lecture: l.title, block: i, moduleNo: no.get(m.id)!, module: m.title, caption: b.caption, src: b.src ?? null, fileId: b.src ? null : b.fileId, points: b.points.length, locked: !!m.locked });
+    });
+  }
+  return { course: { id: v.id, title: v.title }, figures };
+};

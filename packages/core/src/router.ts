@@ -137,6 +137,7 @@ add('POST', '/submissions/:id/grade', (c, r) => learn.gradeSubmission(c, p(r, 'i
 add('POST', '/submissions/:id/return', (c, r) => learn.returnSubmission(c, p(r, 'id'), r.body));
 add('GET', '/journal', (c, r) => learn.journal(c, r.query));
 add('GET', '/learn/courses/:id/glossary', (c, r) => search.courseGlossary(c, p(r, 'id')));
+add('GET', '/learn/courses/:id/figures', (c, r) => search.courseFigures(c, p(r, 'id')));
 add('GET', '/tests/:id/stats', (c, r) => stats.testStats(c, p(r, 'id'), r.query));
 add('GET', '/search', (c, r) => search.search(c, r.query));
 

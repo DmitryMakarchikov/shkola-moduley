@@ -11,11 +11,13 @@ import {
   resolveSession,
   seedDemo,
   type CoursePackage,
+  type FigurePoint,
   type Change,
   type Hasher,
   type Ports,
 } from '@pc/core';
 import { ApiError, cleanQuery, type Client } from './client.ts';
+import figurePoints from '../../../../packages/course-trpo/figure-points.json';
 
 const DB_NAME = 'polny-cikl';
 const TOKEN = 'pc.token';
@@ -148,7 +150,8 @@ export const createLocalClient = async (): Promise<Client> => {
     const pkg = (await import('../../../../packages/course-trpo/course.json')).default as unknown as CoursePackage;
     await seedDemo(ports, pkg);
   }
-  await upgradeData(ports);
+  /* точки-подсказки на рисунках курса — небольшой файл, подключается всегда */
+  await upgradeData(ports, { figurePoints: figurePoints as Record<string, FigurePoint[]> });
   await purgeExpired(ports);
 
   const token = () => safeStore.get(TOKEN);

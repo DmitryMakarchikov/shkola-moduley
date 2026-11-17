@@ -65,7 +65,24 @@ export const parseBlocks = (v: unknown): Block[] =>
       case 'image': {
         const src = courseSrc(b.src);
         const caption = str(b.caption, 'Подпись', { max: 300, optional: true });
-        return src ? { type, fileId: '', src, caption } : { type, fileId: idOf(b.fileId, 'Файл'), caption };
+        const img = src ? { type, fileId: '', src, caption } : { type, fileId: idOf(b.fileId, 'Файл'), caption };
+        if (b.points === undefined) return img;
+        /* точки-подсказки: координаты в процентах, не больше двадцати на рисунок */
+        const pct = (v: unknown) => {
+          const n = Number(v);
+          if (!Number.isFinite(n)) throw bad('Неверное положение точки на рисунке');
+          return Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
+        };
+        const points = arr(
+          b.points,
+          'Точки на рисунке',
+          (p) => {
+            const o = obj(p, 'Точка');
+            return { x: pct(o.x), y: pct(o.y), title: str(o.title, 'Название точки', { max: 120, optional: true }), text: str(o.text, 'Пояснение точки', { max: 1200, optional: true }) };
+          },
+          20,
+        );
+        return { ...img, points };
       }
       case 'file':
         return { type, fileId: idOf(b.fileId, 'Файл'), caption: str(b.caption, 'Подпись', { max: 300, optional: true }) };

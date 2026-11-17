@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { test } from 'node:test';
-import { AppError, DEMO_PASSWORD, MemoryRepo, dispatch, fillDemoAnswers, findRanges, fold, gradeTest, queryWords, seedDemo, type Method, type Ports } from '../src/index.ts';
+import { AppError, DEMO_PASSWORD, MemoryRepo, dispatch, fillDemoAnswers, findRanges, fold, gradeTest, queryWords, seedDemo, upgradeData, type Method, type Ports } from '../src/index.ts';
 
 const hasher = {
   async hash(p: string) {
@@ -180,4 +180,37 @@ test('опрос на занятии: учащиеся группы отвеча
   assert.equal(done.finished, true);
   assert.ok(done.summary.length >= 1 && done.summary[0].answered === 1);
   assert.equal((await student('GET', '/live/active')).live, null, 'завершённый опрос не активен');
+});
+
+test('интерактивные схемы: точки проверяются, добавляются из пакета курса один раз, лента схем курса', async () => {
+  const ports = makePorts();
+  await seedDemo(ports);
+  const teacher = await as(ports, 'teacher');
+  const student = await as(ports, 'student');
+  const [course] = await student('GET', '/learn/courses');
+  const view = await student('GET', `/learn/courses/${course.id}`);
+  const lid = view.sections.flatMap((s: any) => s.modules).flatMap((m: any) => m.lectures)[0].id;
+  const SRC = 'course/trpo/x-1.webp';
+  const lec = (await ports.repo.get('lectures', lid))!;
+  await ports.repo.update('lectures', lid, { blocks: [...lec.blocks, { type: 'image', fileId: '', src: SRC, caption: 'Рис. 1. Схема' }] });
+  const map = { [SRC]: [{ x: 10, y: 20, title: 'Блок', text: 'Пояснение из лекции' }] };
+  await upgradeData(ports, { figurePoints: map });
+  const last = async () => (await ports.repo.get('lectures', lid))!.blocks.at(-1) as any;
+  assert.equal((await last()).points.length, 1, 'точки добавлены из пакета курса');
+  await upgradeData(ports, { figurePoints: map });
+  assert.equal((await last()).points.length, 1, 'повторно не добавляются');
+  const f = await student('GET', `/learn/courses/${course.id}/figures`);
+  assert.equal(f.figures.length, 1);
+  assert.equal(f.figures[0].points, 1);
+  assert.equal(f.figures[0].lectureId, lid);
+  /* преподаватель удалил все точки — при обновлении данных они не возвращаются */
+  const blocks = (await ports.repo.get('lectures', lid))!.blocks.map((b: any) => (b.src === SRC ? { ...b, points: [] } : b));
+  await teacher('PATCH', `/lectures/${lid}`, { title: lec.title, blocks });
+  await upgradeData(ports, { figurePoints: map });
+  assert.equal((await last()).points.length, 0);
+  /* координаты ограничиваются рамками рисунка, неверные отклоняются */
+  const withPoints = (pts: unknown) => (ports.repo.get('lectures', lid) as Promise<any>).then((l) => teacher('PATCH', `/lectures/${lid}`, { title: l.title, blocks: l.blocks.map((b: any) => (b.src === SRC ? { ...b, points: pts } : b)) }));
+  await withPoints([{ x: 150, y: -5, title: 'Край', text: '' }]);
+  assert.deepEqual([(await last()).points[0].x, (await last()).points[0].y], [100, 0]);
+  await assert.rejects(withPoints([{ x: 'левее', y: 5, title: '', text: '' }]), (e: unknown) => e instanceof AppError && e.status === 400);
 });

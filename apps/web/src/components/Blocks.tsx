@@ -1,7 +1,8 @@
 /* показ блоков лекции */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Block, CrosswordWord } from '@pc/core';
+import type { Block, CrosswordWord, FigurePoint } from '@pc/core';
 import { useApp } from '../lib/app.tsx';
+import { plural } from '../lib/format.ts';
 import { Button, Icon } from '../ui/ui.tsx';
 
 /* ссылка на файл: в автономном режиме — временный адрес из IndexedDB, на сервере — защищённый адрес API */
@@ -79,7 +80,86 @@ const Figure = ({ url, caption }: { url: string | null; caption: string }) => {
   );
 };
 
-const FileImg = ({ id, caption }: { id: string; caption: string }) => <Figure url={useFileUrl(id)} caption={caption} />;
+/* интерактивная схема (как фототур): нажатие на номер плавно приближает деталь и ставит её в центр,
+   ниже — пояснение из лекции; стрелки и клавиши ← → ведут по точкам, «Вся схема» или Esc возвращают общий вид */
+const ZOOM = 2.2;
+const clampPct = (v: number, z: number) => Math.min(0, Math.max(100 - 100 * z, v));
+export const FigureTour = ({ url, caption, points }: { url: string | null; caption: string; points: FigurePoint[] }) => {
+  const [cur, setCur] = useState<number | null>(null);
+  const [seen, setSeen] = useState(false);
+  const p = cur === null ? null : points[cur];
+  const go = (i: number) => {
+    setSeen(true);
+    setCur(((i % points.length) + points.length) % points.length);
+  };
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowRight') go(cur === null ? 0 : cur + 1);
+    else if (e.key === 'ArrowLeft') go(cur === null ? points.length - 1 : cur - 1);
+    else if (e.key === 'Escape' && cur !== null) setCur(null);
+    else return;
+    e.preventDefault();
+  };
+  /* деталь — в центр кадра, но без пустых полей по краям */
+  const view = p
+    ? { transform: `translate(${clampPct(50 - p.x * ZOOM, ZOOM)}%, ${clampPct(50 - p.y * ZOOM, ZOOM)}%) scale(${ZOOM})`, '--z': ZOOM }
+    : { transform: 'none', '--z': 1 };
+  return (
+    <figure className={`tour ${p ? 'is-zoomed' : ''}`} onKeyDown={onKey}>
+      <span className="tour__badge">
+        <Icon name="eye" size={14} /> Интерактивная схема · {points.length} {plural(points.length, ['точка', 'точки', 'точек'])}
+      </span>
+      <div className="tour__stage">
+        <div className="tour__canvas" style={view as React.CSSProperties}>
+          {url ? <img src={url} alt={caption || 'Схема'} draggable={false} /> : <div className="lb-figure__stub">Изображение загружается…</div>}
+          {points.map((pt, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`tour__dot ${cur === i ? 'is-on' : ''} ${seen ? '' : 'is-calling'}`}
+              style={{ left: `${pt.x}%`, top: `${pt.y}%` }}
+              aria-label={`Точка ${i + 1}: ${pt.title}`}
+              aria-pressed={cur === i}
+              onClick={() => (cur === i ? setCur(null) : go(i))}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
+      </div>
+      {p ? (
+        <div className="tour__card" aria-live="polite">
+          <div className="tour__head">
+            <span className="tour__n">{cur! + 1}</span>
+            <h4 className="tour__title">{p.title}</h4>
+            <span className="tour__count">
+              {cur! + 1} из {points.length}
+            </span>
+          </div>
+          {p.text && <p className="tour__text">{rich(p.text)}</p>}
+          <div className="tour__nav">
+            <Button size="sm" icon="arrow-left" aria-label="Предыдущая точка" onClick={() => go(cur! - 1)} />
+            <Button size="sm" onClick={() => setCur(null)}>
+              Вся схема
+            </Button>
+            <Button size="sm" kind="primary" onClick={() => go(cur! + 1)}>
+              {cur! + 1 < points.length ? 'Следующая точка' : 'С первой точки'}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <p className="tour__hint">
+          <Icon name="info" size={16} /> Нажмите на номер на схеме — деталь приблизится, а ниже появится пояснение из лекции. Клавиши ← → переходят между точками.
+        </p>
+      )}
+      {caption && <figcaption>{caption}</figcaption>}
+    </figure>
+  );
+};
+
+const FileImg = ({ id, caption, points }: { id: string; caption: string; points?: FigurePoint[] }) => {
+  const url = useFileUrl(id);
+  return points?.length ? <FigureTour url={url} caption={caption} points={points} /> : <Figure url={url} caption={caption} />;
+};
 
 /* видео только с проверенных сервисов */
 const embed = (url: string) => {
@@ -156,7 +236,11 @@ export const Blocks = ({ blocks }: { blocks: Block[] }) => (
             </div>
           );
         case 'image':
-          return b.src ? <Figure key={i} url={b.src} caption={b.caption} /> : <FileImg key={i} id={b.fileId} caption={b.caption} />;
+          return (
+            <div key={i} data-fig={i} className="lb-fig">
+              {b.src ? b.points?.length ? <FigureTour url={b.src} caption={b.caption} points={b.points} /> : <Figure url={b.src} caption={b.caption} /> : <FileImg id={b.fileId} caption={b.caption} points={b.points} />}
+            </div>
+          );
         case 'file':
           return (
             <p key={i} className="lb-p">

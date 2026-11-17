@@ -81,7 +81,15 @@ const blocksHtml = async (blocks: Block[], c: ReturnType<typeof collector>) => {
         break;
       case 'image': {
         const src = await c.image(b);
-        out.push(src ? `<figure><img src="${src}" alt="${esc(b.caption || 'Иллюстрация')}" loading="lazy">${b.caption ? `<figcaption>${esc(b.caption)}</figcaption>` : ''}</figure>` : `<p class="muted">[Рисунок: ${esc(b.caption)}]</p>`);
+        if (!src) {
+          out.push(`<p class="muted">[Рисунок: ${esc(b.caption)}]</p>`);
+          break;
+        }
+        /* точки-подсказки в пакете: номера поверх рисунка и пояснения под ним */
+        const pts = b.points ?? [];
+        const dots = pts.map((p, k) => `<span class="dot" style="left:${p.x}%;top:${p.y}%">${k + 1}</span>`).join('');
+        const legend = pts.length ? `<ol class="pts">${pts.map((p) => `<li><strong>${esc(p.title)}</strong>${p.text ? ` — ${rich(p.text)}` : ''}</li>`).join('')}</ol>` : '';
+        out.push(`<figure><span class="fig"><img src="${src}" alt="${esc(b.caption || 'Иллюстрация')}" loading="lazy">${dots}</span>${b.caption ? `<figcaption>${esc(b.caption)}</figcaption>` : ''}</figure>${legend}`);
         break;
       }
       case 'video':
@@ -143,6 +151,8 @@ nav.toc a{padding:6px 10px;border-radius:8px;color:var(--t);text-decoration:none
 main{padding:8px 20px 60px}
 section.card{background:#fff;border:1px solid var(--b);border-radius:14px;padding:22px 24px;margin:18px 0}
 h2{margin:0 0 12px;font-size:1.4rem}h3{margin:22px 0 8px;font-size:1.15rem}
+.fig{position:relative;display:inline-block;max-width:100%}.dot{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;border:2px solid #fff;border-radius:50%;background:var(--p);color:#fff;font:700 12px/20px sans-serif;text-align:center}
+.pts{margin:6px 0 16px;font-size:.95rem}
 .muted{color:var(--m)}figure{margin:16px 0;text-align:center}figure img{max-width:100%;height:auto;border:1px solid var(--b);border-radius:8px}
 figcaption{color:var(--m);font-size:.9rem;margin-top:6px}
 pre{background:#0f1526;color:#e3eaf6;padding:14px;border-radius:10px;overflow:auto;font:14px/1.5 Consolas,monospace}

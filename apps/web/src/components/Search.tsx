@@ -104,8 +104,14 @@ export const SearchBox = () => {
         setOpen(true);
       }
     };
+    /* открыть поиск можно и кнопкой со страницы (событие pc:search) */
+    const open = () => setOpen(true);
     addEventListener('keydown', on);
-    return () => removeEventListener('keydown', on);
+    addEventListener('pc:search', open);
+    return () => {
+      removeEventListener('keydown', on);
+      removeEventListener('pc:search', open);
+    };
   }, []);
 
   useEffect(() => {

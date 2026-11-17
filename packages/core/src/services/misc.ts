@@ -1,7 +1,7 @@
 /* уведомления, журнал действий, корзина, сводка, файлы */
 import { alive, audit, base, getAlive, joinCode, needRole, needUser, strongCode, touch, type Ctx } from '../context.ts';
 import { bad, forbidden, notFound } from '../errors.ts';
-import { fullName, type Base, type FileRow, type Table, type User } from '../model.ts';
+import { fullName, type Base, type FigurePoint, type FileRow, type Table, type User } from '../model.ts';
 import type { Ports } from '../ports.ts';
 import { ROLE_LABEL, isStaff } from '../roles.ts';
 import { norm, oneOf, str } from '../validate.ts';
@@ -252,12 +252,27 @@ export const purgeExpired = async (ports: Ports) => {
 };
 
 /* обновление данных при запуске: старые угадываемые коды групп заменяются случайными;
-   у демонстрационных попыток появляются ответы по заданиям (для анализа заданий теста) */
-export const upgradeData = async (ports: Ports) => {
+   у демонстрационных попыток появляются ответы по заданиям (для анализа заданий теста);
+   рисунки курса получают точки-подсказки из пакета курса */
+export const upgradeData = async (ports: Ports, extra: { figurePoints?: Record<string, FigurePoint[]> } = {}) => {
   for (const g of await ports.repo.all('groups')) {
     if (!strongCode(g.joinCode)) await ports.repo.update('groups', g.id, { joinCode: joinCode() });
   }
   await fillDemoAnswers(ports);
+  if (extra.figurePoints) await addFigurePoints(ports, extra.figurePoints);
+};
+
+/* точки добавляются только рисунку, у которого их ещё не задавали: если преподаватель удалил все точки, они не вернутся */
+const addFigurePoints = async (ports: Ports, map: Record<string, FigurePoint[]>) => {
+  for (const l of await ports.repo.all('lectures')) {
+    let changed = false;
+    const blocks = l.blocks.map((b) => {
+      if (b.type !== 'image' || !b.src || b.points !== undefined || !map[b.src]?.length) return b;
+      changed = true;
+      return { ...b, points: map[b.src]! };
+    });
+    if (changed) await ports.repo.update('lectures', l.id, { blocks });
+  }
 };
 
 /* ---------- сводка на главной ---------- */
