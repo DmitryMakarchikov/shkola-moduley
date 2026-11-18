@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { DEMO_ACCOUNTS, DEMO_PASSWORD, ROLE_LABEL } from '@pc/core';
+import { AuthBackdrop } from '../components/AuthBackdrop.tsx';
 import { Logo } from '../layout/Layout.tsx';
 import { useApp } from '../lib/app.tsx';
 import { Button, ErrorBox, Field, Icon } from '../ui/ui.tsx';
@@ -28,8 +29,9 @@ const AuthShell = ({ children, title, lead }: { children: React.ReactNode; title
         {children}
       </div>
     </section>
-    {/* о платформе */}
+    {/* о платформе; на фоне — схемы из технологии разработки ПО */}
     <aside className="auth__aside">
+      <AuthBackdrop />
       <div className="auth__art">
         <p className="auth__lead">Учебные курсы из модулей — шаг за шагом</p>
         <ul className="auth__points">

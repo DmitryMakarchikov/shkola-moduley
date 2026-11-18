@@ -335,3 +335,95 @@
     }
   }
 }
+
+/* фон панели входа: схемы из технологии разработки ПО по углам */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.bd {
+  position: absolute;
+  height: auto;
+  overflow: visible;
+  animation: bd-float 11s ease-in-out infinite;
+
+  rect,
+  circle,
+  ellipse,
+  line,
+  path {
+    fill: none;
+    stroke: rgb(255 255 255 / 0.3);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  rect {
+    fill: rgb(255 255 255 / 0.035);
+  }
+
+  text {
+    fill: rgb(255 255 255 / 0.42);
+    font-family: var(--font);
+    font-size: 14px;
+  }
+
+  .bd__name {
+    fill: rgb(255 255 255 / 0.55);
+    font-weight: 700;
+  }
+
+  .bd__small {
+    font-size: 12px;
+  }
+
+  .bd__head {
+    fill: rgb(255 255 255 / 0.4);
+    stroke: none;
+  }
+
+  &--classes {
+    top: 4%;
+    left: 3%;
+    width: clamp(260px, 30vw, 400px);
+  }
+
+  &--life {
+    top: 5%;
+    right: 3%;
+    width: clamp(220px, 22vw, 320px);
+    animation-delay: -3s;
+  }
+
+  &--usecase {
+    bottom: 2%;
+    left: 3%;
+    width: clamp(190px, 17vw, 260px);
+    animation-delay: -6s;
+  }
+
+  &--idef {
+    right: 3%;
+    bottom: 2%;
+    width: clamp(190px, 17vw, 260px);
+    animation-delay: -8s;
+  }
+}
+
+/* на невысоком экране нижние схемы уходили под карточки — только верхние */
+@media (max-height: 820px) {
+  .bd--usecase,
+  .bd--idef {
+    display: none;
+  }
+}
+
+@keyframes bd-float {
+  50% {
+    transform: translateY(-8px);
+  }
+}
